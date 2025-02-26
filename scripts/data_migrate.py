@@ -9,5 +9,5 @@ df = pd.read_excel(file)
 print(df.shape)
 print(df.head())
 
-df.to_csv(output_folder / output_file, sep='\t')
+df.to_csv(output_folder / output_file, sep='\t', index=False)
 
