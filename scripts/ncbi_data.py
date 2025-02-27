@@ -31,7 +31,7 @@ def main():
     print(f"The shape of df: {df.shape}")
     # print(df)
 
-    df_test = df.iloc[8:10, :]
+    df_test = df.iloc[8:10, :].copy()
     print(f"The shape of df_test: {df_test.shape}")
     
     # gene_list = ["WIPI2", "KIAA1549L", "ZG16B"]
@@ -85,43 +85,47 @@ def main():
                 ## Check if there are multiple symbols.
                 if match_method == "strict":
                     list_symbol = df_gene["Symbol"].unique()
-                    print(list_symbol)
+                    # print(list_symbol)
                     if len(list_symbol) > 1:
                         print(f"{gene} has more than 1 match: {list_symbol}")
-                    print(df_gene.shape)
+                    # print(df_gene.shape)
                     df_gene = df_gene[df_gene["Symbol"] == gene]
-                    print(df_gene.shape)
+                    # print(df_gene.shape)
                 elif match_method == "all":
                     pass
                 else:
                     print(f'Error: please check "match_method".')
                     sys.exit()
 
-                # ## Manage GO term.
-                # dict_go = {"Gene Ontology Biological Process Go ID": "GOBP_ID",
-                #            "Gene Ontology Biological Process Name": "GOBP_NAME",
-                #            "Gene Ontology Cellular Component Go ID": "GOCC_ID",
-                #            "Gene Ontology Cellular Component Name": "GOCC_NAME",
-                #            "Gene Ontology Molecular Function Go ID": "GOMF_ID",
-                #            "Gene Ontology Molecular Function Name": "GOMF_NAME"}
+                ## Manage GO term.
+                dict_go = {"Gene Ontology Biological Process Go ID": "GOBP_ID",
+                           "Gene Ontology Biological Process Name": "GOBP_NAME",
+                           "Gene Ontology Cellular Component Go ID": "GOCC_ID",
+                           "Gene Ontology Cellular Component Name": "GOCC_NAME",
+                           "Gene Ontology Molecular Function Go ID": "GOMF_ID",
+                           "Gene Ontology Molecular Function Name": "GOMF_NAME"}
 
-                # for col in dict_go:
-                #     unique_terms = df_gene[col].unique()
-                #     # print(unique_terms)
-                #     terms = ""
-                #     if not len(unique_terms) == 1:
-                #         terms = ';'.join(unique_terms)
-                #     else:
-                #         ## If there's no matching term, the array is [nan] with dtype "float64".
-                #         if not unique_terms.dtype=="float64":
-                #             terms = unique_terms[0]
-                #     # print(dict_go[col])
-                #     # print(terms)
-                #     df_test.loc[i, dict_go[col]] = terms
+                for col in dict_go:
+                    unique_terms = df_gene[col].unique()
+                    # print(unique_terms)
+                    terms = ""
+                    if not len(unique_terms) == 1:
+                        terms = ';'.join(unique_terms)
+                    else:
+                        ## If there's no matching term, the array is [nan] with dtype "float64".
+                        if not unique_terms.dtype=="float64":
+                            terms = unique_terms[0]
+                    # print(dict_go[col])
+                    # print(terms)
+                    df_test.loc[i, dict_go[col]] = terms
 
-    # print(df_test)
-    # output_file = output_folder / f"test_result.txt"
-    # df_test.to_csv(output_file, sep='\t', index=False)
+    print(df_test)
+    if match_method == "all":
+        output_name = f"test_result.txt"
+    else:
+        output_name = f"test_result_strict.txt"
+    output_file = output_folder / output_name
+    df_test.to_csv(output_file, sep='\t', index=False)
 
 
     # ## Single gene test.
