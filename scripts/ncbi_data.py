@@ -24,18 +24,19 @@ def main():
     # Collect GO terms from 
     # 1. "all": all returned results.
     # 2. "strict": only from the identical gene symbol.
-    match_method = "strict"  # "all" or "strict"
+    match_method = "all"  # "all" or "strict"
     
     
     df = pd.read_table(input_file, sep='\t')
     print(f"The shape of df: {df.shape}")
     # print(df)
 
-    df_test = df.iloc[8:10, :].copy()
+    # df_test = df.iloc[305:310, :].copy()
+    df_test = df.copy()
     print(f"The shape of df_test: {df_test.shape}")
     
-    # gene_list = ["WIPI2", "KIAA1549L", "ZG16B"]
-    gene_list = df_test[input_colname]
+    # # gene_list = ["WIPI2", "KIAA1549L", "ZG16B"]
+    # gene_list = df_test[input_colname]
     ## Showing fields please refer to: https://www.ncbi.nlm.nih.gov/datasets/docs/v2/command-line-tools/using-dataformat/gene-data-reports/
     fields_command = ["--taxon",
                       "human",
@@ -50,6 +51,23 @@ def main():
                      go-cc-id,go-cc-name,\
                      go-mf-id,go-mf-name,\
                      name-id,orientation,transcript-count,protein-count"]
+    
+    ## Columns to annotate.
+    dict_col = {"NCBI GeneID": "Gene_ID",
+                "Synonyms": "Synonyms",
+                "Description": "Description",
+                "Gene Type": "Gene_Type",
+                "Orientation": "Orientation",
+                "Transcripts": "Transcripts",
+                "Proteins": "Proteins"}
+
+    ## Manage GO term to annotate.
+    dict_go = {"Gene Ontology Biological Process Go ID": "GOBP_ID",
+               "Gene Ontology Biological Process Name": "GOBP_NAME",
+               "Gene Ontology Cellular Component Go ID": "GOCC_ID",
+               "Gene Ontology Cellular Component Name": "GOCC_NAME",
+               "Gene Ontology Molecular Function Go ID": "GOMF_ID",
+               "Gene Ontology Molecular Function Name": "GOMF_NAME"}
     
     
     for i, row in df_test.iterrows():
@@ -75,55 +93,90 @@ def main():
                 # Convert the tsv output to a Pandas DataFrame.
                 df_gene = pd.read_csv(io.StringIO(result.stdout), sep="\t")
 
-                # Display the DataFrame.
-                print(df_gene)
+                # # Display the DataFrame.
+                # print(df_gene)
                 # # Write to file.
                 # output_file = output_folder / "test_gene" / f"{gene}.txt"
                 # df_gene.to_csv(output_file, sep='\t', index=False)
 
-
                 ## Check if there are multiple symbols.
+                list_symbol = df_gene["Symbol"].unique()
+                # print(list_symbol)
+                if len(list_symbol) > 1:
+                    print(f"{gene} has more than 1 match: {list_symbol}")
+                    # Write to file.
+                    output_file = output_folder / "multiple_genes" / f"{gene}.txt"
+                    df_gene.to_csv(output_file, sep='\t', index=False)
+
+                ## Skip the gene if "strict" mode and it's not in the result.
+                skip = False
+                # GO term annotation method, filter symbol if set to "strict".
                 if match_method == "strict":
-                    list_symbol = df_gene["Symbol"].unique()
-                    # print(list_symbol)
                     if len(list_symbol) > 1:
-                        print(f"{gene} has more than 1 match: {list_symbol}")
-                    # print(df_gene.shape)
-                    df_gene = df_gene[df_gene["Symbol"] == gene]
-                    # print(df_gene.shape)
+                        ## Check if "gene" is within the list.
+                        if gene in list_symbol:
+                            df_gene = df_gene[df_gene["Symbol"] == gene]
+                        else:
+                            skip = True
                 elif match_method == "all":
                     pass
                 else:
                     print(f'Error: please check "match_method".')
                     sys.exit()
 
-                ## Manage GO term.
-                dict_go = {"Gene Ontology Biological Process Go ID": "GOBP_ID",
-                           "Gene Ontology Biological Process Name": "GOBP_NAME",
-                           "Gene Ontology Cellular Component Go ID": "GOCC_ID",
-                           "Gene Ontology Cellular Component Name": "GOCC_NAME",
-                           "Gene Ontology Molecular Function Go ID": "GOMF_ID",
-                           "Gene Ontology Molecular Function Name": "GOMF_NAME"}
-
                 for col in dict_go:
                     unique_terms = df_gene[col].unique()
                     # print(unique_terms)
-                    terms = ""
-                    if not len(unique_terms) == 1:
+                    terms = ""   ## Default for no matching terms.
+                    if len(unique_terms) > 1:   ## More than one unique terms.
+                        ## Check if there is missing value "nan" in the array, remove them.
+                        if any(type(x) == float for x in unique_terms):
+                            unique_terms = unique_terms[~pd.isna(unique_terms)]
+                        # print(unique_terms)
                         terms = ';'.join(unique_terms)
-                    else:
+                    else:    ## Only one unique terms.
                         ## If there's no matching term, the array is [nan] with dtype "float64".
-                        if not unique_terms.dtype=="float64":
+                        if not unique_terms.dtype == "float64":
                             terms = unique_terms[0]
                     # print(dict_go[col])
                     # print(terms)
                     df_test.loc[i, dict_go[col]] = terms
 
-    print(df_test)
+
+                # Filter symbol if not filtered already.
+                if not match_method == "strict":
+                    if len(list_symbol) > 1:
+                        ## Check if "gene" is within the list.
+                        if gene in list_symbol:
+                            df_gene = df_gene[df_gene["Symbol"] == gene]
+                        else:
+                            skip = True
+
+                for col in dict_col:
+                    unique_value = df_gene[col].unique()
+                    value = ""   ## Default value for no matching or "skip" gene.
+                    if not skip:
+                        if len(unique_value) > 1:
+                            print(f"{gene} has more than 1 values: {unique_value}")
+                            value = ';'.join(unique_value)
+                            # Write to file.
+                            output_file = output_folder / "multiple_values" / f"{gene}.txt"
+                            df_gene.to_csv(output_file, sep='\t', index=False)
+                        else:
+                            ## If there's no matching value, the array is [nan] with dtype "float64".
+                            if not unique_value.dtype == "float64":
+                                value = unique_value[0]
+                    # print(dict_go[col])
+                    # print(value)
+                    df_test.loc[i, dict_col[col]] = value
+                    
+
+    # print(df_test)
+    
     if match_method == "all":
-        output_name = f"test_result.txt"
+        output_name = f"{input_file.stem}_annotate.txt"
     else:
-        output_name = f"test_result_strict.txt"
+        output_name = f"{input_file.stem}_annotate_strict.txt"
     output_file = output_folder / output_name
     df_test.to_csv(output_file, sep='\t', index=False)
 
