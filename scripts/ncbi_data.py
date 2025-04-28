@@ -10,15 +10,18 @@ import sys
 __author__ = "Johnathan Lin <jagonball@g-mail.nsysu.edu.tw>"
 __email__ = "jagonball@g-mail.nsysu.edu.tw"
 
+## To do: Create project folder, subfolder "multiple_values" and "multiple_genes"
 
 def main():
     time_start = time()
     print(f"ncbi_data.py start time: {ctime(time_start)}")
 
-    input_file = Path("D:/Repositories/25_01_Liver_Cancer/data/Microarray_Huh7_normalized.txt")
-    input_colname = "GeneName"
+    # input_file = Path("D:/Repositories/25_01_Liver_Cancer/data/Microarray_Huh7_normalized.txt")
+    input_file = Path("D:/Repositories/VEPy/analysis/002_PET/PET_total_matched.txt")
+    input_colname = "Hugo_Symbol"  #"GeneName"
 
-    output_folder = Path("D:/Repositories/25_01_Liver_Cancer/analysis/")
+    # output_folder = Path("D:/Repositories/25_01_Liver_Cancer/analysis/")
+    output_folder = Path("D:/Repositories/VEPy/analysis/002_PET")
     # Get gene metadata by NCBI gene ID, gene symbol or RefSeq accession.
     input_type = "symbol"  # "gene-id" "accession" "taxon"
     # Collect GO terms from 
