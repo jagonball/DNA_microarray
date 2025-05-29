@@ -16,12 +16,19 @@ def main():
     time_start = time()
     print(f"ncbi_data.py start time: {ctime(time_start)}")
 
+    project_name = "antiI10_IgG"
     # input_file = Path("D:/Repositories/25_01_Liver_Cancer/data/Microarray_Huh7_normalized.txt")
-    input_file = Path("D:/Repositories/VEPy/analysis/002_PET/PET_total_matched.txt")
-    input_colname = "Hugo_Symbol"  #"GeneName"
+    # input_file = Path("D:/Repositories/VEPy/analysis/002_PET/PET_total_matched.txt")
+    input_file = Path("C:/Users/CSBM_JL/OneDrive/桌面/antiIrisin_filter.txt")
+    input_colname = "symbol"  #"Hugo_Symbol"  #"GeneName"
 
     # output_folder = Path("D:/Repositories/25_01_Liver_Cancer/analysis/")
-    output_folder = Path("D:/Repositories/VEPy/analysis/002_PET")
+    # output_folder = Path("D:/Repositories/VEPy/analysis/002_PET")
+    output_folder = Path("C:/Users/CSBM_JL/OneDrive/Documents/[精準醫學博士班]/250423_Irisin_RNAeq/data_analysis/annotate")
+    ## Create subfolder for outputs.
+    project_folder = create_folder(project_name, output_folder)
+    mvalue_folder = create_folder("multiple_values", project_folder)
+    mgenes_folder = create_folder("multiple_genes", project_folder)
     # Get gene metadata by NCBI gene ID, gene symbol or RefSeq accession.
     input_type = "symbol"  # "gene-id" "accession" "taxon"
     # Collect GO terms from 
@@ -43,17 +50,17 @@ def main():
     ## Showing fields please refer to: https://www.ncbi.nlm.nih.gov/datasets/docs/v2/command-line-tools/using-dataformat/gene-data-reports/
     fields_command = ["--taxon",
                       "human",
-                     "--as-json-lines",
-                     "|",
-                     "dataformat",
-                     "tsv", 
-                     "gene", 
-                     "--fields",
-                     "symbol,gene-id,synonyms,description,ensembl-geneids,gene-type,\
-                     go-bp-id,go-bp-name,\
-                     go-cc-id,go-cc-name,\
-                     go-mf-id,go-mf-name,\
-                     name-id,orientation,transcript-count,protein-count"]
+                      "--as-json-lines",
+                      "|",
+                      "dataformat",
+                      "tsv", 
+                      "gene", 
+                      "--fields",
+                      "symbol,gene-id,synonyms,description,ensembl-geneids,gene-type,\
+                      go-bp-id,go-bp-name,\
+                      go-cc-id,go-cc-name,\
+                      go-mf-id,go-mf-name,\
+                      name-id,orientation,transcript-count,protein-count"]
     
     ## Columns to annotate.
     dict_col = {"NCBI GeneID": "Gene_ID",
@@ -96,11 +103,11 @@ def main():
                 # Convert the tsv output to a Pandas DataFrame.
                 df_gene = pd.read_csv(io.StringIO(result.stdout), sep="\t")
 
-                # # Display the DataFrame.
+                ## Display the DataFrame.
                 # print(df_gene)
-                # # Write to file.
-                # output_file = output_folder / "test_gene" / f"{gene}.txt"
-                # df_gene.to_csv(output_file, sep='\t', index=False)
+                # Write to file.
+                output_file = output_folder / "temp_gene_results" / f"{gene}.txt"
+                df_gene.to_csv(output_file, sep='\t', index=False)
 
                 ## Check if there are multiple symbols.
                 list_symbol = df_gene["Symbol"].unique()
@@ -108,10 +115,10 @@ def main():
                 if len(list_symbol) > 1:
                     print(f"{gene} has more than 1 match: {list_symbol}")
                     # Write to file.
-                    output_file = output_folder / "multiple_genes" / f"{gene}.txt"
+                    output_file = mgenes_folder / f"{gene}.txt"
                     df_gene.to_csv(output_file, sep='\t', index=False)
 
-                ## Skip the gene if "strict" mode and it's not in the result.
+                ## Skip the gene if "strict" mode and no exact match in the result.
                 skip = False
                 # GO term annotation method, filter symbol if set to "strict".
                 if match_method == "strict":
@@ -127,6 +134,8 @@ def main():
                     print(f'Error: please check "match_method".')
                     sys.exit()
 
+
+                ## Annotate GO terms from df_gene.
                 for col in dict_go:
                     unique_terms = df_gene[col].unique()
                     # print(unique_terms)
@@ -146,7 +155,7 @@ def main():
                     df_test.loc[i, dict_go[col]] = terms
 
 
-                # Filter symbol if not filtered already.
+                # Filter symbol for additional annotation.
                 if not match_method == "strict":
                     if len(list_symbol) > 1:
                         ## Check if "gene" is within the list.
@@ -155,21 +164,29 @@ def main():
                         else:
                             skip = True
 
+
+                ## Annotate additional information.
                 for col in dict_col:
                     unique_value = df_gene[col].unique()
+                    # print(unique_value)
                     value = ""   ## Default value for no matching or "skip" gene.
                     if not skip:
                         if len(unique_value) > 1:
-                            print(f"{gene} has more than 1 values: {unique_value}")
+                            print(f"{gene} has more than 1 value for {col}: {unique_value}")
                             value = ';'.join(unique_value)
                             # Write to file.
-                            output_file = output_folder / "multiple_values" / f"{gene}.txt"
+                            output_file = mvalue_folder / f"{gene}.txt"
                             df_gene.to_csv(output_file, sep='\t', index=False)
                         else:
                             ## If there's no matching value, the array is [nan] with dtype "float64".
                             if not unique_value.dtype == "float64":
                                 value = unique_value[0]
-                    # print(dict_go[col])
+                            else:  # "float64" may contain nan
+                                if np.isnan(unique_value):
+                                    continue
+                                else:  # An float numeric other than nan.
+                                    value = unique_value[0]
+                    # print(dict_col[col])
                     # print(value)
                     df_test.loc[i, dict_col[col]] = value
                     
@@ -206,7 +223,7 @@ def main():
 
     time_end = time()
     time_used = time_end - time_start
-    show_time(time_used, "Total timme taken")
+    show_time(time_used, "Total time taken")
 
 
 if __name__=="__main__": 

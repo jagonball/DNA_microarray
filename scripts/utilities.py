@@ -19,7 +19,7 @@ def create_folder(folder_name, path_to_folder, verbose = False):
     :type folder_name: str
     :param path_to_folder: The path to check for the folder.
     :type path_to_folder: str
-    :return: The full path to inside the folder.
+    :return: Full path to the target folder.
     :rtype: str
     """
     final_folder = path_to_folder / folder_name
